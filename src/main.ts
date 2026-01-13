@@ -4,6 +4,7 @@ import { exceedsParagraphLimits } from "./html.js";
 Devvit.configure({
   redditAPI: true,
 });
+const defaultValue = 'please make sure to properly format your post and add paragraphs.\n\nif you dont know how just add 2 newlines every once in a while';
 
 Devvit.addSettings([
   {
@@ -40,9 +41,11 @@ Devvit.addSettings([
         label: 'Action to take',
         options: [
           { label: 'Report', value: 'report' },
-          { label: 'Remove (bot cant comment yet)', value: 'remove' },
-          // { label: 'Comment', value: 'comment' },
-        ], defaultValue: ['remove'],
+          { label: 'Remove', value: 'remove' },
+          { label: 'Comment', value: 'comment' },
+          { label: 'Lock', value: 'lock' },
+        ], defaultValue: ['report'],
+        multiSelect: true,
       },
       {
         type: "string",
@@ -51,6 +54,26 @@ Devvit.addSettings([
         // @ts-expect-error
         onValidate: validateStringRange('report_reason', 3, 88),
         defaultValue: 'user\'s post doesnt meet the text requirements'
+      },
+      {
+        type: "paragraph",
+        name: "comment_body",
+        label: 'Comment Body',
+        // @ts-expect-error
+        onValidate: validateStringRange('comment_body', 15, 10000),
+        defaultValue,
+      },
+      {
+        type: "boolean",
+        name: "lockown",
+        label: 'Lock own comment',
+        defaultValue: true,
+      },
+      {
+        type: "boolean",
+        name: "sticky",
+        label: 'Sticky own comment',
+        defaultValue: true,
       },
     ]
   }
@@ -81,18 +104,30 @@ Devvit.addTrigger({
   async onEvent(event, context) {
     const id = event.post?.id;
     if (id) {
-      const html = (await context.reddit.getPostById(id)).bodyHtml || '';
-      const report = exceedsParagraphLimits(html, {
+      const post = await context.reddit.getPostById(id), html = post.bodyHtml || '';
+      const exceeded = exceedsParagraphLimits(html, {
         maxCharactersPerParagraph: (await context.settings.get<number>('maxCharactersPerParagraph')) || undefined,
         maxWordsPerParagraph: (await context.settings.get<number>('maxWordsPerParagraph')) || undefined,
       });
-      const actions = (await context.settings.get<string[]>('action')) ?? [];
-      if (report && actions.includes('remove')) {
-        await context.reddit.remove(id, false);
-      } else if (report && actions.includes('report')) {
-        const reason = `u/${context.appName}: ` + (await context.settings.get<number>('report_reason'));
-        // @ts-expect-error
-        await context.reddit.report(event.post, { reason });
+      if (exceeded) {
+        const actions = (await context.settings.get<string[]>('action')) ?? [];
+        if (actions.includes('comment')) {
+          const text = (await context.settings.get<string>('comment_body')) || defaultValue,
+            comment = await context.reddit.submitComment({ id, text });
+
+          await comment.distinguish(await context.settings.get<boolean>('sticky'));
+          if (await context.settings.get<boolean>('lockown')) await comment.lock();
+        }
+        if (actions.includes('lock')) {
+          await post.lock();
+        }
+        if (actions.includes('remove')) {
+          await context.reddit.remove(id, false);
+        } else if (actions.includes('report')) {
+          const reason = `u/${context.appName}: ` + (await context.settings.get<number>('report_reason'));
+          // @ts-expect-error
+          await context.reddit.report(event.post, { reason });
+        }
       }
     }
   },
