@@ -13,6 +13,13 @@ when a detection is detected you can set the bot to
 
 or a combination of them. if you add remove then no repprt will happen.
 
+## changelog
+
+### 0.0.3
+
+- fixed the issue where "`RangeError: 0 must be greater than Infinity, received 0"
+- yes someone has actually reported that
+
 ## u/parawall-block's socials
 
 [u/parawall-block (devvit)](https://developers.reddit.com/apps/parawall-block),

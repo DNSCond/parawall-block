@@ -16,8 +16,7 @@ Devvit.addSettings([
         name: "maxCharactersPerParagraph",
         label: 'max characters per paragraph',
         helpText: '0 for unlimited',
-        // @ts-expect-error
-        onValidate: validateRangeInt(0, Infinity),
+        onValidate: validateRangeInt('max characters per paragraph', 0, Infinity),
         defaultValue: 500,
       },
       {
@@ -25,8 +24,7 @@ Devvit.addSettings([
         name: "maxWordsPerParagraph",
         label: 'max words per paragraph',
         helpText: '0 for unlimited',
-        // @ts-expect-error
-        onValidate: validateRangeInt(0, Infinity),
+        onValidate: validateRangeInt('max words per paragraph',0, Infinity),
         defaultValue: 200,
       },
     ]
