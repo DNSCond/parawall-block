@@ -15,9 +15,9 @@ or a combination of them. if you add remove then no repprt will happen.
 
 ## changelog
 
-### 0.0.3
+### 0.0.4
 
-- fixed the issue where "`RangeError: 0 must be greater than Infinity, received 0"
+- fixed the issue where "`RangeError: 0 must be greater than Infinity, received 0`"
 - yes someone has actually reported that
 
 ## u/parawall-block's socials
