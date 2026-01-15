@@ -1,5 +1,5 @@
 import { Devvit } from "@devvit/public-api";
-import { exceedsParagraphLimits } from "./html.js";
+import { getParagraphCounts, getParagraphTotals } from "./html2.js";
 
 Devvit.configure({
   redditAPI: true,
@@ -17,14 +17,14 @@ Devvit.addSettings([
         label: 'max characters per paragraph',
         helpText: '0 for unlimited',
         onValidate: validateRangeInt('max characters per paragraph', 0, Infinity),
-        defaultValue: 500,
+        defaultValue: 600,
       },
       {
         type: "number",
         name: "maxWordsPerParagraph",
         label: 'max words per paragraph',
         helpText: '0 for unlimited',
-        onValidate: validateRangeInt('max words per paragraph',0, Infinity),
+        onValidate: validateRangeInt('max words per paragraph', 0, Infinity),
         defaultValue: 200,
       },
     ]
@@ -49,16 +49,14 @@ Devvit.addSettings([
         type: "string",
         name: "report_reason",
         label: 'Report Reason',
-        // @ts-expect-error
-        onValidate: validateStringRange('report_reason', 3, 88),
+        onValidate: validateStringRange('Report Reason', 3, 70),
         defaultValue: 'user\'s post doesnt meet the text requirements'
       },
       {
         type: "paragraph",
         name: "comment_body",
         label: 'Comment Body',
-        // @ts-expect-error
-        onValidate: validateStringRange('comment_body', 15, 10000),
+        onValidate: validateStringRange('Comment Body', 15, 10000),
         defaultValue,
       },
       {
@@ -76,26 +74,6 @@ Devvit.addSettings([
     ]
   }
 ]);
-function validateStringRange(_label: string, min: number, max: number) {
-  return ({ value }: { value: string }) => {
-    const len = BigInt(value?.length || 0);
-    if (len < min) return `${RangeError('Character count must be more than ' + min)}`;
-    if (len > max) return `${RangeError('Character count must be less than ' + max)}`;
-  };
-}
-
-function validateRangeInt(variable: string, minInclusive: number, maxInclusive: number, allow0: boolean = false) {
-  return function ({ value }) {
-    try {
-      // @ts-expect-error
-      const b = BigInt(value); if (allow0) if (b === 0n) return undefined;
-      if (b < minInclusive) throw RangeError(`${variable} must be greater than ${minInclusive}, received ${b}`);
-      if (b > maxInclusive) throw RangeError(`${variable} must be less than ${maxInclusive}, received ${b}`);
-    } catch (err) {
-      return String(err);
-    } return undefined;
-  } as ({ value }: { value: number | undefined }) => string | undefined;
-}
 
 Devvit.addTrigger({
   events: ['PostCreate', 'PostUpdate'],// , 'CommentCreate', 'CommentUpdate'
@@ -103,10 +81,12 @@ Devvit.addTrigger({
     const id = event.post?.id;
     if (id) {
       const post = await context.reddit.getPostById(id), html = post.bodyHtml || '';
-      const exceeded = exceedsParagraphLimits(html, {
-        maxCharactersPerParagraph: (await context.settings.get<number>('maxCharactersPerParagraph')) || undefined,
-        maxWordsPerParagraph: (await context.settings.get<number>('maxWordsPerParagraph')) || undefined,
-      });
+      const conf = {
+        maxWordsPerParagraph: (await context.settings.get<number>('maxWordsPerParagraph')) || Infinity,
+        maxCharactersPerParagraph: (await context.settings.get<number>('maxCharactersPerParagraph')) || Infinity,
+      }, p = getParagraphCounts(html), exceeded = p.some(p => p.words > conf.maxWordsPerParagraph ||
+        p.characters > conf.maxCharactersPerParagraph);
+      //; exceeded = exceedsParagraphLimits(html, conf);
       if (exceeded) {
         const actions = (await context.settings.get<string[]>('action')) ?? [];
         if (actions.includes('comment')) {
@@ -122,7 +102,8 @@ Devvit.addTrigger({
         if (actions.includes('remove')) {
           await context.reddit.remove(id, false);
         } else if (actions.includes('report')) {
-          const reason = `u/${context.appName}: ` + (await context.settings.get<number>('report_reason'));
+          const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
+          const reason = `u/${context.appName} (letters=${maxCharacters}, words=${maxWords}): ` + (await context.settings.get<string>('report_reason'));
           // @ts-expect-error
           await context.reddit.report(event.post, { reason });
         }
@@ -131,4 +112,36 @@ Devvit.addTrigger({
   },
 });
 
+Devvit.addMenuItem({
+  location: 'post',
+  label: "Evaulate Post",
+  description: 'u/parawall-block',
+  async onPress(event, context) {
+    const post = await context.reddit.getPostById(event.targetId), html = post.bodyHtml || '';
+    const p = getParagraphCounts(html), paragraphCounts = p.length;
+    const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
+    context.ui.showToast(`u/${context.appName} (letters=${maxCharacters}, words=${maxWords}, paragraphs=${paragraphCounts})`);
+  },
+});
+
 export default Devvit;
+function validateStringRange(_label: string, min: number, max: number) {
+  return function ({ value }: { value: string | undefined }) {
+    const len = BigInt(value?.length || 0);
+    if (len < min) return `${RangeError('Character count must be more than ' + min)}`;
+    if (len > max) return `${RangeError('Character count must be less than ' + max)}`;
+  } as ({ value }: { value: string | undefined }) => string | undefined;;
+}
+
+function validateRangeInt(variable: string, minInclusive: number, maxInclusive: number, allow0: boolean = false) {
+  return function ({ value }: { value: number | undefined }) {
+    try {
+      // @ts-expect-error
+      const b = BigInt(value); if (allow0) if (b === 0n) return undefined;
+      if (b < minInclusive) throw RangeError(`${variable} must be greater than ${minInclusive}, received ${b}`);
+      if (b > maxInclusive) throw RangeError(`${variable} must be less than ${maxInclusive}, received ${b}`);
+    } catch (err) {
+      return String(err);
+    } return undefined;
+  } as ({ value }: { value: number | undefined }) => string | undefined;
+}

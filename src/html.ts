@@ -12,8 +12,8 @@ export function exceedsParagraphLimits(html: string, limits: { maxCharactersPerP
   const { maxCharactersPerParagraph, maxWordsPerParagraph } = limits;
 
   if (
-    maxCharactersPerParagraph == null &&
-    maxWordsPerParagraph == null
+    maxCharactersPerParagraph == null
+    && maxWordsPerParagraph == null
   ) {
     return false;
   }

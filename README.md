@@ -15,6 +15,11 @@ or a combination of them. if you add remove then no repprt will happen.
 
 ## changelog
 
+### 0.0.5
+
+- added a menu item to count paragraphs, the most words in those paragraphs, and the most characters in any of those paragraphs
+- added the count of the most words in those paragraphs, and the most characters in any of those paragraphs.
+
 ### 0.0.4
 
 - fixed the issue where "`RangeError: 0 must be greater than Infinity, received 0`"
