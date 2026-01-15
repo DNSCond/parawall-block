@@ -15,7 +15,12 @@ or a combination of them. if you add remove then no repport will happen.
 
 ## changelog
 
-### 0.0.5
+### 0.0.7
+
+- added link support
+  - if its not hyperlinked on reddit then it doesnt work
+
+### 0.0.6
 
 - added a menu item to count paragraphs, the most words in those paragraphs, and the most characters in any of those paragraphs
 - added the count of the most words in those paragraphs, and the most characters in any of those paragraphs.

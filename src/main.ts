@@ -1,5 +1,5 @@
 import { Devvit } from "@devvit/public-api";
-import { getParagraphCounts, getParagraphTotals } from "./html2.js";
+import { parseHTMLMD } from "./html3.js";
 
 Devvit.configure({
   redditAPI: true,
@@ -9,74 +9,169 @@ const defaultValue = 'please make sure to properly format your post and add para
 Devvit.addSettings([
   {
     type: 'group',
-    "label": "Checks",
+    label: "Paragraphs",
     fields: [
       {
-        type: "number",
-        name: "maxCharactersPerParagraph",
-        label: 'max characters per paragraph',
-        helpText: '0 for unlimited',
-        onValidate: validateRangeInt('max characters per paragraph', 0, Infinity),
-        defaultValue: 600,
+        type: "boolean",
+        name: "enabled",
+        label: 'Enabled',
+        defaultValue: true,
       },
       {
-        type: "number",
-        name: "maxWordsPerParagraph",
-        label: 'max words per paragraph',
-        helpText: '0 for unlimited',
-        onValidate: validateRangeInt('max words per paragraph', 0, Infinity),
-        defaultValue: 200,
+        type: 'group',
+        label: "Checks",
+        fields: [
+          {
+            type: "number",
+            name: "maxCharactersPerParagraph",
+            label: 'max characters per paragraph',
+            helpText: '0 for unlimited',
+            onValidate: validateRangeInt('max characters per paragraph', 0, Infinity),
+            defaultValue: 600,
+          },
+          {
+            type: "number",
+            name: "maxWordsPerParagraph",
+            label: 'max words per paragraph',
+            helpText: '0 for unlimited',
+            onValidate: validateRangeInt('max words per paragraph', 0, Infinity),
+            defaultValue: 200,
+          },
+        ]
       },
+      {
+        type: 'group',
+        label: "Action",
+        fields: [
+          {
+            type: "select",
+            name: "action",
+            label: 'Action to take',
+            options: [
+              { label: 'Report', value: 'report' },
+              { label: 'Remove', value: 'remove' },
+              { label: 'Comment', value: 'comment' },
+              { label: 'Lock', value: 'lock' },
+            ], defaultValue: ['report'],
+            multiSelect: true,
+          },
+          {
+            type: "string",
+            name: "report_reason",
+            label: 'Report Reason',
+            onValidate: validateStringRange('Report Reason', 3, 70),
+            defaultValue: 'user\'s post doesnt meet the text requirements'
+          },
+          {
+            type: "paragraph",
+            name: "comment_body",
+            label: 'Comment Body',
+            onValidate: validateStringRange('Comment Body', 15, 10000),
+            defaultValue,
+          },
+          {
+            type: "boolean",
+            name: "lockown",
+            label: 'Lock own comment',
+            defaultValue: true,
+          },
+          {
+            type: "boolean",
+            name: "sticky",
+            label: 'Sticky own comment',
+            defaultValue: true,
+          },
+        ]
+      }
     ]
   },
   {
     type: 'group',
-    label: "Action",
+    label: "Links",
     fields: [
       {
-        type: "select",
-        name: "action",
-        label: 'Action to take',
-        options: [
-          { label: 'Report', value: 'report' },
-          { label: 'Remove', value: 'remove' },
-          { label: 'Comment', value: 'comment' },
-          { label: 'Lock', value: 'lock' },
-        ], defaultValue: ['report'],
-        multiSelect: true,
-      },
-      {
-        type: "string",
-        name: "report_reason",
-        label: 'Report Reason',
-        onValidate: validateStringRange('Report Reason', 3, 70),
-        defaultValue: 'user\'s post doesnt meet the text requirements'
-      },
-      {
-        type: "paragraph",
-        name: "comment_body",
-        label: 'Comment Body',
-        onValidate: validateStringRange('Comment Body', 15, 10000),
-        defaultValue,
-      },
-      {
         type: "boolean",
-        name: "lockown",
-        label: 'Lock own comment',
-        defaultValue: true,
+        name: "enabled-BannedDomains",
+        label: 'Enabled',
+        defaultValue: false,
       },
       {
-        type: "boolean",
-        name: "sticky",
-        label: 'Sticky own comment',
-        defaultValue: true,
+        type: 'group',
+        label: "Checks",
+        fields: [
+          {
+            type: "paragraph",
+            name: "BannedDomains",
+            label: 'domains to take action on',
+            helpText: 'space or comma or pipe ("|") seperated. domains only (reddit.com instead of https://reddit.com)',
+            onValidate({ value }) {
+              const domains = value?.split(/[|,\s]+/g);
+              if (!domains) return undefined;
+              for (let domain of domains) {
+                if (!URL.canParse(`https://${domain}/`)) {
+                  return `${TypeError(`"${domain}" is not a valid domain`)}`;
+                }
+              }
+            },
+          },
+          {
+            type: "boolean",
+            name: "nolink-BannedDomains",
+            label: 'Flag All HyperLinks',
+            defaultValue: false,
+          },
+        ]
       },
+      {
+        type: 'group',
+        label: "Action",
+        fields: [
+          {
+            type: "select",
+            name: "action-BannedDomains",
+            label: 'Action to take',
+            options: [
+              { label: 'Report', value: 'report' },
+              { label: 'Remove', value: 'remove' },
+              { label: 'Comment', value: 'comment' },
+              { label: 'Lock', value: 'lock' },
+            ], defaultValue: ['report'],
+            multiSelect: true,
+          },
+          {
+            type: "string",
+            name: "report_reason-BannedDomains",
+            label: 'Report Reason',
+            onValidate: validateStringRange('Report Reason', 3, 70),
+            defaultValue: 'user used a banned domains',
+          },
+          {
+            type: "paragraph",
+            name: "comment_body-BannedDomains",
+            label: 'Comment Body',
+            onValidate: validateStringRange('Comment Body', 15, 10000),
+            defaultValue: 'please do not use that domain',
+          },
+          {
+            type: "boolean",
+            name: "lockown-BannedDomains",
+            label: 'Lock own comment',
+            defaultValue: true,
+          },
+          {
+            type: "boolean",
+            name: "sticky-BannedDomains",
+            label: 'Sticky own comment',
+            defaultValue: true,
+          },
+        ]
+      }
     ]
   }
 ]);
 
 Devvit.addTrigger({
-  events: ['PostCreate', 'PostUpdate'],// , 'CommentCreate', 'CommentUpdate'
+  events: ['PostCreate', 'PostUpdate'],
   async onEvent(event, context) {
     const id = event.post?.id;
     if (id) {
@@ -84,10 +179,12 @@ Devvit.addTrigger({
       const conf = {
         maxWordsPerParagraph: (await context.settings.get<number>('maxWordsPerParagraph')) || Infinity,
         maxCharactersPerParagraph: (await context.settings.get<number>('maxCharactersPerParagraph')) || Infinity,
-      }, p = getParagraphCounts(html), exceeded = p.some(p => p.words > conf.maxWordsPerParagraph ||
-        p.characters > conf.maxCharactersPerParagraph);
-      //; exceeded = exceedsParagraphLimits(html, conf);
-      if (exceeded) {
+      }, { paragraphs, hrefs } = parseHTMLMD(html, 'https://reddit.com'), p = paragraphs,
+        exceeded = p.some(p => p.words > conf.maxWordsPerParagraph
+          || p.characters > conf.maxCharactersPerParagraph);
+
+      // exceeding paragraphs
+      if (exceeded && (await context.settings.get<boolean>('enabled'))) {
         const actions = (await context.settings.get<string[]>('action')) ?? [];
         if (actions.includes('comment')) {
           const text = (await context.settings.get<string>('comment_body')) || defaultValue,
@@ -96,16 +193,48 @@ Devvit.addTrigger({
           await comment.distinguish(await context.settings.get<boolean>('sticky'));
           if (await context.settings.get<boolean>('lockown')) await comment.lock();
         }
-        if (actions.includes('lock')) {
-          await post.lock();
-        }
+        if (actions.includes('lock')) await post.lock();
         if (actions.includes('remove')) {
           await context.reddit.remove(id, false);
         } else if (actions.includes('report')) {
           const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
-          const reason = `u/${context.appName} (letters=${maxCharacters}, words=${maxWords}): ` + (await context.settings.get<string>('report_reason'));
+          const reason = `u/${context.appName} (letters=${maxCharacters}, words=${maxWords}): `
+            + (await context.settings.get<string>('report_reason'));
           // @ts-expect-error
           await context.reddit.report(event.post, { reason });
+        }
+      }
+
+      if (await context.settings.get<boolean>('enabled-BannedDomains')) {
+        const postFix = '-BannedDomains', hostnames = hrefs.map(url => url.hostname);
+        const BannedDomains = ((await context.settings.get<string>('BannedDomains')) ?? '').split(/[|,\s]+/g);
+        let isBanned = await context.settings.get<boolean>('nolink' + postFix);
+
+        if (!isBanned) isBanned = BannedDomains.some(banned => hostnames.some(user => {
+          const lowerUser = user.toLowerCase(),
+            lowerBanned = banned.toLowerCase();
+
+          return lowerUser === lowerBanned || lowerUser.endsWith('.' + lowerBanned);
+        }));
+
+        if (isBanned) {
+          const actions = (await context.settings.get<string[]>('action' + postFix)) ?? [];
+          if (actions.includes('comment')) {
+            const text = (await context.settings.get<string>('comment_body' + postFix)) || defaultValue,
+              comment = await context.reddit.submitComment({ id, text });
+
+            await comment.distinguish(await context.settings.get<boolean>('sticky' + postFix));
+            if (await context.settings.get<boolean>('lockown' + postFix)) await comment.lock();
+          }
+          if (actions.includes('lock')) await post.lock();
+          if (actions.includes('remove')) {
+            await context.reddit.remove(id, false);
+          } else if (actions.includes('report')) {
+            const reason = `u/${context.appName}: `
+              + (await context.settings.get<string>('report_reason' + postFix));
+            // @ts-expect-error
+            await context.reddit.report(event.post, { reason });
+          }
         }
       }
     }
@@ -118,7 +247,7 @@ Devvit.addMenuItem({
   description: 'u/parawall-block',
   async onPress(event, context) {
     const post = await context.reddit.getPostById(event.targetId), html = post.bodyHtml || '';
-    const p = getParagraphCounts(html), paragraphCounts = p.length;
+    const { paragraphs } = parseHTMLMD(html), p = paragraphs, paragraphCounts = p.length;
     const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
     context.ui.showToast(`u/${context.appName} (letters=${maxCharacters}, words=${maxWords}, paragraphs=${paragraphCounts})`);
   },
