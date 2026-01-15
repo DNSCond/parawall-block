@@ -11,7 +11,7 @@ when a detection is detected you can set the bot to
 - report the post
 - have the bot comment on the post
 
-or a combination of them. if you add remove then no repprt will happen.
+or a combination of them. if you add remove then no repport will happen.
 
 ## changelog
 
