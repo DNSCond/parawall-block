@@ -15,6 +15,10 @@ or a combination of them. if you add remove then no repport will happen.
 
 ## changelog
 
+### 0.0.8
+
+- fixed the empty domain error
+
 ### 0.0.7
 
 - added link support

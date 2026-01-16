@@ -106,8 +106,9 @@ Devvit.addSettings([
             helpText: 'space or comma or pipe ("|") seperated. domains only (reddit.com instead of https://reddit.com)',
             onValidate({ value }) {
               const domains = value?.split(/[|,\s]+/g);
-              if (!domains) return undefined;
+              if (!domains?.length) return undefined;
               for (let domain of domains) {
+                if (domain === '') continue;
                 if (!URL.canParse(`https://${domain}/`)) {
                   return `${TypeError(`"${domain}" is not a valid domain`)}`;
                 }
