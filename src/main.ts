@@ -4,7 +4,10 @@ import { parseHTMLMD } from "./html3.js";
 Devvit.configure({
   redditAPI: true,
 });
-const defaultValue = 'please make sure to properly format your post and add paragraphs.\n\nif you dont know how just add 2 newlines every once in a while';
+const defaultValue = 'please make sure to properly format your post and add paragraphs.\n\n' +
+  'if you dont know how just add 2 newlines every once in a while\n\n' +
+  'you currently have {current-words} words in your longest paragraph where {limit-words} are allowed.  \nyou also '
+  + 'have {current-chars} characters at most in any of your paragraphs where only {limit-chars} are allowed.';
 
 Devvit.addSettings([
   {
@@ -66,6 +69,7 @@ Devvit.addSettings([
             type: "paragraph",
             name: "comment_body",
             label: 'Comment Body',
+            helpText: 'placeholders supported. the placeholders available are in the readme',
             onValidate: validateStringRange('Comment Body', 15, 10000),
             defaultValue,
           },
@@ -171,6 +175,29 @@ Devvit.addSettings([
   }
 ]);
 
+function insertionReplacer(string: string,
+  currentChars: number, currentWords: number,
+  limitChars: number, limitWords: number): string {
+  return `${string}`.replaceAll(/\{(current|limit)-(char|word)(s?)}/ig, function
+    (_: string, currLimit_: string, charWords_: string, plural: string): string {
+    const currLimit = currLimit_.toLowerCase(), charWords = charWords_.toLowerCase();
+    if (currLimit === 'current') {
+      if (charWords === 'char') {
+        return `${currentChars}`;
+      } else if (charWords === 'word') {
+        return `${currentWords}`;
+      }
+    } else if (currLimit === 'limit') {
+      if (charWords === 'char') {
+        return `${limitChars}`;
+      } else if (charWords === 'word') {
+        return `${limitWords}`;
+      }
+    }
+    return `{${currLimit_}-${charWords_}${plural}}`;
+  });
+}
+
 Devvit.addTrigger({
   events: ['PostCreate', 'PostUpdate'],
   async onEvent(event, context) {
@@ -187,18 +214,21 @@ Devvit.addTrigger({
       // exceeding paragraphs
       if (exceeded && (await context.settings.get<boolean>('enabled'))) {
         const actions = (await context.settings.get<string[]>('action')) ?? [];
+        const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
+
         if (actions.includes('comment')) {
-          const text = (await context.settings.get<string>('comment_body')) || defaultValue,
+          const text = insertionReplacer((await context.settings.get<string>('comment_body')) || defaultValue,
+            maxCharacters, maxWords, conf.maxCharactersPerParagraph, conf.maxWordsPerParagraph),
             comment = await context.reddit.submitComment({ id, text });
 
           await comment.distinguish(await context.settings.get<boolean>('sticky'));
           if (await context.settings.get<boolean>('lockown')) await comment.lock();
         }
+
         if (actions.includes('lock')) await post.lock();
         if (actions.includes('remove')) {
           await context.reddit.remove(id, false);
         } else if (actions.includes('report')) {
-          const maxCharacters = Math.max(...p.map(p => p.characters)), maxWords = Math.max(...p.map(p => p.words));
           const reason = `u/${context.appName} (letters=${maxCharacters}, words=${maxWords}): `
             + (await context.settings.get<string>('report_reason'));
           // @ts-expect-error

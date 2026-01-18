@@ -13,7 +13,25 @@ when a detection is detected you can set the bot to
 
 or a combination of them. if you add remove then no repport will happen.
 
+## placeholders
+
+| placeholder | replaced with |
+|:------------|:--------------|
+| `{limit-words}` | the number of words max per paragraph |
+| `{limit-chars}` | the number of characters max per paragraph |
+| `{current-words}` | the number of the most words in any paragraph |
+| `{current-chars}` | the number of the most characters in any paragraph |
+
+case-insensitive
+
 ## changelog
+
+### 0.0.9: placeholder support
+
+- you can now set placeholders by putting the ones above in your text.
+  only one textfield supports them.
+- default value of said textbox updated. uninstall and then install the app to make it update.
+  you will lose your settings if you do that
 
 ### 0.0.8
 
